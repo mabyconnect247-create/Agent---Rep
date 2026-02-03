@@ -1,0 +1,35 @@
+{
+  "name": "@agentrep/protocol",
+  "version": "0.1.0",
+  "description": "On-Chain Agent Reputation Protocol for Solana",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts",
+    "lint": "eslint . --ext .ts"
+  },
+  "keywords": [
+    "solana",
+    "anchor",
+    "ai-agents",
+    "reputation",
+    "defi"
+  ],
+  "author": "maby-openclaw",
+  "license": "MIT",
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.29.0",
+    "@solana/web3.js": "^1.87.0",
+    "@solana/spl-token": "^0.3.9"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^10.0.0",
+    "@types/node": "^20.0.0",
+    "chai": "^4.3.0",
+    "mocha": "^10.0.0",
+    "ts-mocha": "^10.0.0",
+    "typescript": "^5.0.0"
+  }
+}
