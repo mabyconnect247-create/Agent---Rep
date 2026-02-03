@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-rgb: 10, 10, 10;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 50%, #0a0a0a 100%);
+  background-attachment: fixed;
+}
+
+.gradient-text {
+  background: linear-gradient(90deg, #9945FF, #14F195);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.glow-border {
+  border: 1px solid transparent;
+  background: linear-gradient(#1a1a2e, #1a1a2e) padding-box,
+              linear-gradient(90deg, #9945FF, #14F195) border-box;
+}
+
+.score-ring {
+  background: conic-gradient(
+    #14F195 calc(var(--score) * 1%),
+    #2a2a3e calc(var(--score) * 1%)
+  );
+}
+
+.card-hover {
+  transition: all 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 40px rgba(153, 69, 255, 0.2);
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
