@@ -11,6 +11,7 @@ import {
   todayKey,
   type PaperTrade,
   type Side,
+  type TradeMode,
 } from '../../lib/eval';
 
 const tierColors: Record<string, string> = {
@@ -35,7 +36,9 @@ export default function DashboardPage() {
 
   // New trade form
   const [mint, setMint] = useState('');
+  const [mode, setMode] = useState<TradeMode>('SPOT');
   const [side, setSide] = useState<Side>('LONG');
+  const [leverage, setLeverage] = useState<number>(5);
   const [sizePct, setSizePct] = useState(10);
   const [tpPct, setTpPct] = useState<number>(20);
   const [slPct, setSlPct] = useState<number>(10);
@@ -83,6 +86,7 @@ export default function DashboardPage() {
     if (!mint.trim()) return setError('Paste token CA (mint)');
     if (sizePct <= 0 || sizePct > 100) return setError('Size % must be 1-100');
     if (tpPct < 0 || slPct < 0) return setError('TP/SL must be >= 0');
+    if (mode === 'FUTURES' && (leverage < 1 || leverage > 100)) return setError('Leverage must be 1-100');
 
     try {
       setBusy('open');
@@ -92,7 +96,9 @@ export default function DashboardPage() {
         id: `t_${Math.random().toString(36).slice(2, 10)}`,
         accountId: account.id,
         mint: mint.trim(),
-        side,
+        mode,
+        side: mode === 'SPOT' ? 'LONG' : side,
+        leverage: mode === 'FUTURES' ? leverage : undefined,
         sizePct,
         tpPct,
         slPct,
@@ -151,7 +157,7 @@ export default function DashboardPage() {
       // Fetch prices serially (MVP). Can batch later.
       for (const t of openTrades) {
         const px = await fetchPriceUsd(t.mint);
-        const pnlPct = computePnlPct(t.side, t.entryPriceUsd, px);
+        const pnlPct = computePnlPct(t.side, t.entryPriceUsd, px, t.leverage ?? 1);
 
         const hitTP = typeof t.tpPct === 'number' && t.tpPct > 0 && pnlPct >= t.tpPct;
         const hitSL = typeof t.slPct === 'number' && t.slPct > 0 && pnlPct <= -t.slPct;
@@ -260,6 +266,51 @@ export default function DashboardPage() {
             <h3 className="text-lg font-bold mb-4">📌 New Paper Trade</h3>
 
             <label className="text-sm text-gray-400">Token CA (Mint)</label>
+
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <div>
+                <label className="text-sm text-gray-400">Mode</label>
+                <select
+                  value={mode}
+                  onChange={(e) => setMode(e.target.value as TradeMode)}
+                  className="w-full mt-2 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#9945FF]"
+                >
+                  <option value="SPOT">SPOT (default)</option>
+                  <option value="FUTURES">FUTURES (optional)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm text-gray-400">Action</label>
+                {mode === 'SPOT' ? (
+                  <div className="w-full mt-2 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm text-gray-200">
+                    BUY (spot)
+                  </div>
+                ) : (
+                  <select
+                    value={side}
+                    onChange={(e) => setSide(e.target.value as Side)}
+                    className="w-full mt-2 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#9945FF]"
+                  >
+                    <option value="LONG">LONG</option>
+                    <option value="SHORT">SHORT</option>
+                  </select>
+                )}
+              </div>
+            </div>
+
+            {mode === 'FUTURES' && (
+              <div className="mt-4">
+                <label className="text-sm text-gray-400">Leverage</label>
+                <input
+                  type="number"
+                  value={leverage}
+                  onChange={(e) => setLeverage(Number(e.target.value))}
+                  className="w-full mt-2 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#9945FF]"
+                />
+                <div className="text-xs text-gray-500 mt-1">Paper perps. PnL is multiplied by leverage (MVP simulation).</div>
+              </div>
+            )}
+
             <input
               value={mint}
               onChange={(e) => setMint(e.target.value)}
@@ -267,27 +318,14 @@ export default function DashboardPage() {
               className="w-full mt-2 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#9945FF]"
             />
 
-            <div className="grid grid-cols-2 gap-3 mt-4">
-              <div>
-                <label className="text-sm text-gray-400">Side</label>
-                <select
-                  value={side}
-                  onChange={(e) => setSide(e.target.value as Side)}
-                  className="w-full mt-2 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#9945FF]"
-                >
-                  <option value="LONG">LONG</option>
-                  <option value="SHORT">SHORT</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm text-gray-400">Size %</label>
-                <input
-                  type="number"
-                  value={sizePct}
-                  onChange={(e) => setSizePct(Number(e.target.value))}
-                  className="w-full mt-2 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#9945FF]"
-                />
-              </div>
+            <div className="mt-4">
+              <label className="text-sm text-gray-400">Size % (virtual position size)</label>
+              <input
+                type="number"
+                value={sizePct}
+                onChange={(e) => setSizePct(Number(e.target.value))}
+                className="w-full mt-2 bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-sm focus:outline-none focus:border-[#9945FF]"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3 mt-4">
@@ -316,7 +354,7 @@ export default function DashboardPage() {
               disabled={account.status !== 'ACTIVE' || busy === 'open'}
               className={`btn-primary w-full mt-5 ${account.status !== 'ACTIVE' ? 'opacity-50 cursor-not-allowed' : 'shimmer'}`}
             >
-              {busy === 'open' ? 'Opening…' : 'Open Paper Trade'}
+              {busy === 'open' ? 'Opening…' : mode === 'SPOT' ? 'Enter (BUY) Paper Trade' : 'Open Futures Paper Trade'}
             </button>
 
             <button
@@ -362,8 +400,12 @@ export default function DashboardPage() {
                   <div key={t.id} className="p-4 bg-white/5 rounded-xl flex items-center justify-between gap-4">
                     <div>
                       <div className="font-semibold flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${t.side === 'LONG' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>{t.side}</span>
+                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${t.side === 'LONG' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                          {t.mode === 'SPOT' ? 'BUY' : t.side}
+                        </span>
                         <span className="text-gray-300">{t.mint.slice(0, 4)}…{t.mint.slice(-4)}</span>
+                        <span className="text-xs text-gray-500">{t.mode}</span>
+                        {t.mode === 'FUTURES' && <span className="text-xs text-gray-500">{t.leverage ?? 1}x</span>}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
                         Entry ${t.entryPriceUsd.toFixed(6)} • Size {t.sizePct}% • TP {t.tpPct ?? 0}% • SL {t.slPct ?? 0}%
@@ -376,7 +418,7 @@ export default function DashboardPage() {
                       disabled={account.status !== 'ACTIVE' || busy === `close:${t.id}`}
                       className="btn-primary !py-2 !px-4"
                     >
-                      {busy === `close:${t.id}` ? 'Closing…' : 'Close'}
+                      {busy === `close:${t.id}` ? 'Closing…' : t.mode === 'SPOT' ? 'Exit (SELL)' : 'Close'}
                     </button>
                   </div>
                 ))}

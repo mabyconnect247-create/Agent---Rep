@@ -1,5 +1,6 @@
 export type EvalTier = 'Bronze' | 'Silver' | 'Gold' | 'Diamond';
 
+export type TradeMode = 'SPOT' | 'FUTURES';
 export type Side = 'LONG' | 'SHORT';
 
 export interface EvalRules {
@@ -26,7 +27,9 @@ export interface PaperTrade {
   id: string;
   accountId: string;
   mint: string;
-  side: Side;
+  mode: TradeMode; // SPOT default, FUTURES optional
+  side: Side; // LONG/SHORT (for spot we treat LONG as BUY)
+  leverage?: number; // futures only
   sizePct: number; // % of equity allocated to this trade (virtual)
   entryTime: string;
   entryPriceUsd: number;
@@ -91,14 +94,15 @@ export function resetAccount(agentName: string, tier: EvalTier, startingBalanceU
   };
 }
 
-export function computePnlPct(side: Side, entry: number, exit: number) {
+export function computePnlPct(side: Side, entry: number, exit: number, leverage = 1) {
   if (entry <= 0 || exit <= 0) return 0;
   const raw = (exit - entry) / entry;
-  return side === 'LONG' ? raw * 100 : (-raw) * 100;
+  const base = side === 'LONG' ? raw * 100 : (-raw) * 100;
+  return base * Math.max(1, leverage);
 }
 
 export function applyCloseTrade(account: EvalAccount, trade: PaperTrade, exitPriceUsd: number) {
-  const pnlPct = computePnlPct(trade.side, trade.entryPriceUsd, exitPriceUsd);
+  const pnlPct = computePnlPct(trade.side, trade.entryPriceUsd, exitPriceUsd, trade.leverage ?? 1);
   const positionNotional = account.equityUsd * (trade.sizePct / 100);
   const pnlUsd = positionNotional * (pnlPct / 100);
 
