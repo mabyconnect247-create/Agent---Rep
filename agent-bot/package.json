@@ -1,0 +1,9 @@
+{
+  "name": "agentrep-paper-agent-bot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "minimist": "^1.2.8"
+  }
+}
