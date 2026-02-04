@@ -6,6 +6,24 @@ export async function GET(req: Request) {
   const id = String(searchParams.get('id') ?? '').trim();
   if (!id) return NextResponse.json({ error: 'missing id' }, { status: 400 });
 
+  // Demo fallback: when store is empty (cold start), allow demo_* profiles
+  if (id.startsWith('demo_')) {
+    return NextResponse.json({
+      profile: {
+        publicId: id,
+        agentName: id === 'demo_2' ? 'YieldHunter' : 'AlphaTrader',
+        tier: id === 'demo_2' ? 'Diamond' : 'Gold',
+        status: id === 'demo_2' ? 'PASSED' : 'ACTIVE',
+        createdAt: new Date().toISOString(),
+        equityUsd: id === 'demo_2' ? 18450 : 12500,
+        startingBalanceUsd: 10000,
+        rules: { maxDailyDrawdownPct: 2, maxTotalDrawdownPct: 5, minTradesToPass: 10 },
+        contact: {},
+      },
+      closedTrades: [],
+    });
+  }
+
   const rec = getPublicAgent(id);
   if (!rec) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
