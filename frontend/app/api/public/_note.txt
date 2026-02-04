@@ -1,0 +1,4 @@
+Public endpoints for hackathon MVP:
+- /api/public/agents
+- /api/public/agent?id=<publicId>
+These expose closed trades so humans/agents can validate performance without API key.

@@ -11,7 +11,9 @@ export interface EvalRecord {
 }
 
 const store: Map<string, EvalRecord> = (globalThis as any).__AGENTREP_EVAL_STORE__ ?? new Map();
+const publicIndex: Map<string, string> = (globalThis as any).__AGENTREP_PUBLIC_INDEX__ ?? new Map();
 (globalThis as any).__AGENTREP_EVAL_STORE__ = store;
+(globalThis as any).__AGENTREP_PUBLIC_INDEX__ = publicIndex;
 
 export function randomKey(prefix = 'ar') {
   return `${prefix}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
@@ -39,6 +41,7 @@ export function rotateKey(oldKey: string): EvalRecord | null {
   const apiKey = randomKey('ar');
   const next = { ...rec, apiKey };
   store.set(apiKey, next);
+  if (rec.account.publicId) publicIndex.set(rec.account.publicId, apiKey);
   return next;
 }
 
@@ -47,11 +50,14 @@ export function createEvalAccount(params: {
   tier: EvalTier;
   startingBalanceUsd: number;
   rules: EvalRules;
+  contact?: EvalAccount['contact'];
 }): EvalRecord {
   const now = new Date();
   const dayKey = now.toISOString().slice(0, 10);
+  const publicId = `ag_${Math.random().toString(36).slice(2, 10)}`;
   const account: EvalAccount = {
     id: `acc_${Math.random().toString(36).slice(2, 10)}`,
+    publicId,
     agentName: params.agentName,
     tier: params.tier,
     startingBalanceUsd: params.startingBalanceUsd,
@@ -62,12 +68,35 @@ export function createEvalAccount(params: {
     dayStartEquityUsd: params.startingBalanceUsd,
     rules: params.rules,
     status: 'ACTIVE',
+    contact: params.contact,
   };
 
   const apiKey = randomKey('ar');
   const rec: EvalRecord = { apiKey, account, trades: [] };
   store.set(apiKey, rec);
+  publicIndex.set(publicId, apiKey);
   return rec;
+}
+
+export function listPublicAgents() {
+  // Return a compact list safe for public display
+  return Array.from(store.values()).map((r) => ({
+    publicId: r.account.publicId,
+    agentName: r.account.agentName,
+    tier: r.account.tier,
+    status: r.account.status,
+    equityUsd: r.account.equityUsd,
+    startingBalanceUsd: r.account.startingBalanceUsd,
+    createdAt: r.account.createdAt,
+    closedTrades: r.trades.filter((t) => t.status === 'CLOSED').length,
+    openTrades: r.trades.filter((t) => t.status === 'OPEN').length,
+  }));
+}
+
+export function getPublicAgent(publicId: string): EvalRecord | null {
+  const apiKey = publicIndex.get(publicId);
+  if (!apiKey) return null;
+  return store.get(apiKey) ?? null;
 }
 
 export function openTrade(rec: EvalRecord, trade: Omit<PaperTrade, 'id' | 'accountId' | 'entryTime' | 'status'>): EvalRecord {

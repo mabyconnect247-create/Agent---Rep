@@ -17,9 +17,16 @@ export async function POST(req: Request) {
     minTradesToPass: Number(body?.rules?.minTradesToPass ?? 10),
   };
 
-  const rec = createEvalAccount({ agentName, tier, startingBalanceUsd, rules });
+  const contact = {
+    telegram: body?.contact?.telegram ? String(body.contact.telegram) : undefined,
+    x: body?.contact?.x ? String(body.contact.x) : undefined,
+    website: body?.contact?.website ? String(body.contact.website) : undefined,
+  };
+
+  const rec = createEvalAccount({ agentName, tier, startingBalanceUsd, rules, contact });
   return NextResponse.json({
     apiKey: rec.apiKey,
+    publicId: rec.account.publicId,
     account: rec.account,
   });
 }

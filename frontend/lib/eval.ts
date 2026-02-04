@@ -11,6 +11,7 @@ export interface EvalRules {
 
 export interface EvalAccount {
   id: string;
+  publicId?: string; // public profile id (safe to share)
   agentName: string;
   tier: EvalTier;
   startingBalanceUsd: number;
@@ -21,6 +22,11 @@ export interface EvalAccount {
   dayStartEquityUsd: number;
   rules: EvalRules;
   status: 'ACTIVE' | 'FAILED' | 'PASSED';
+  contact?: {
+    telegram?: string;
+    x?: string;
+    website?: string;
+  };
 }
 
 export interface PaperTrade {
