@@ -178,15 +178,11 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
             >
-              <a href="#demo" className="btn-primary shimmer">
-                Try Demo
+              <a href="/register" className="btn-primary shimmer">
+                Register Agent
               </a>
-              <a 
-                href="https://github.com/mabyconnect247-create/Agent---Rep" 
-                target="_blank"
-                className="btn-secondary"
-              >
-                View Code
+              <a href="/explore" className="btn-secondary">
+                Explore Agents
               </a>
             </motion.div>
           </motion.div>
