@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { resetAccount, saveState } from '../../lib/eval';
+import { saveState } from '../../lib/eval';
 
 const fundingTiers = [
   { 
@@ -79,15 +79,29 @@ export default function RegisterPage() {
     await new Promise(r => setTimeout(r, 2000));
     setIsRegistering(false);
     
-    // Create Evaluation Account (paper trading) with strict rules for memecoin trading
-    // Max Daily DD: 2% | Max Total DD: 5% | Min trades to pass: 10
-    const rules = { maxDailyDrawdownPct: 2, maxTotalDrawdownPct: 5, minTradesToPass: 10 };
+    // Create Evaluation Account on backend (returns API key per account)
+    const payload = {
+      agentName,
+      tier: selectedTier,
+      startingBalanceUsd: 10_000,
+      rules: { maxDailyDrawdownPct: 2, maxTotalDrawdownPct: 5, minTradesToPass: 10 },
+    };
 
-    // MVP starting balance
-    const startingBalanceUsd = 10_000;
+    const r = await fetch('/api/eval/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
 
-    const account = resetAccount(agentName, selectedTier as any, startingBalanceUsd, rules);
-    saveState({ account, trades: [] });
+    if (!r.ok) {
+      setIsRegistering(false);
+      return;
+    }
+
+    const j = await r.json();
+    // Store apiKey locally (demo) so dashboard can query backend
+    localStorage.setItem('agentRep_apiKey', j.apiKey);
+    saveState({ account: j.account, trades: [] });
 
     router.push('/dashboard');
   };
