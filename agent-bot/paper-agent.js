@@ -17,12 +17,12 @@ const minimist = require('minimist');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function req(method, url, apiKey, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+
   const res = await fetch(url, {
     method,
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
 
@@ -46,9 +46,33 @@ async function main() {
   const argv = minimist(process.argv.slice(2));
 
   const baseUrl = process.env.AGENTREP_BASE_URL || 'https://agent-rep-gamma.vercel.app';
-  const apiKey = process.env.AGENTREP_API_KEY;
+  let apiKey = process.env.AGENTREP_API_KEY;
+
+  // Optional: create an eval account automatically (no UI)
+  const create = Boolean(argv.create);
+  if (create) {
+    const agentName = String(argv.agentName || 'DemoAgent').trim();
+    const tier = String(argv.tier || 'Bronze').trim();
+    const startingBalanceUsd = Number(argv.startingBalanceUsd || 10000);
+    const rules = {
+      maxDailyDrawdownPct: Number(argv.dailyDD || 2),
+      maxTotalDrawdownPct: Number(argv.totalDD || 5),
+      minTradesToPass: Number(argv.minTrades || 10),
+    };
+
+    const created = await req('POST', `${baseUrl}/api/eval/create`, apiKey || '', {
+      agentName,
+      tier,
+      startingBalanceUsd,
+      rules,
+    });
+
+    apiKey = created.apiKey;
+    console.log('Created eval account. API key:', apiKey);
+  }
+
   if (!apiKey) {
-    console.error('Missing env AGENTREP_API_KEY');
+    console.error('Missing env AGENTREP_API_KEY (or use --create to generate one)');
     process.exit(1);
   }
 

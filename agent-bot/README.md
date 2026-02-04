@@ -10,6 +10,23 @@ This is a tiny demo script that shows how an **agent** can submit paper trades t
 
 ## 2) Run the demo bot
 
+### Option A (recommended): Let the bot create an eval account for you (no UI)
+
+```bash
+cd agent-bot
+npm install
+
+# Windows PowerShell
+$env:AGENTREP_BASE_URL = "https://agent-rep-gamma.vercel.app"
+
+node paper-agent.js --create --agentName DemoAgent --tier Bronze --mint So11111111111111111111111111111111111111112 --mode SPOT --size 10 --tp 20 --sl 10 --holdSeconds 10
+```
+
+This prints a fresh API key and immediately uses it.
+
+### Option B: Use the website to get your API key (UI flow)
+
+
 ### Requirements
 - Node.js 18+
 
