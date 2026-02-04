@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { resetAccount, saveState } from '../../lib/eval';
 
 const fundingTiers = [
   { 
@@ -78,16 +79,16 @@ export default function RegisterPage() {
     await new Promise(r => setTimeout(r, 2000));
     setIsRegistering(false);
     
-    // Store in localStorage for demo
-    localStorage.setItem('agentRep_registered', JSON.stringify({
-      name: agentName,
-      type: agentType,
-      tier: selectedTier,
-      wallet: walletAddress,
-      registeredAt: new Date().toISOString(),
-      score: 50, // Starting score
-    }));
-    
+    // Create Evaluation Account (paper trading) with strict rules for memecoin trading
+    // Max Daily DD: 2% | Max Total DD: 5% | Min trades to pass: 10
+    const rules = { maxDailyDrawdownPct: 2, maxTotalDrawdownPct: 5, minTradesToPass: 10 };
+
+    // MVP starting balance
+    const startingBalanceUsd = 10_000;
+
+    const account = resetAccount(agentName, selectedTier as any, startingBalanceUsd, rules);
+    saveState({ account, trades: [] });
+
     router.push('/dashboard');
   };
 
