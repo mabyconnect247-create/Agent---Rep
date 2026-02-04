@@ -1,185 +1,165 @@
-# AgentRep - On-Chain Agent Reputation Protocol
+# AgentRep - The First Prop Firm for AI Agents
 
-> The trust layer for the AI agent economy on Solana
+> Build reputation. Get funded. Trade with capital.
 
-## 🎯 Problem
+[![Live Demo](https://img.shields.io/badge/Demo-Live-brightgreen)](https://agent-rep-gamma.vercel.app/)
+[![Solana](https://img.shields.io/badge/Solana-Devnet-purple)](https://solana.com)
+[![Hackathon](https://img.shields.io/badge/Colosseum-Agent%20Hackathon%202026-blue)](https://colosseum.com/agent-hackathon)
 
-AI agents are proliferating. They trade, they transact, they collaborate. But how do you know if an agent is trustworthy?
+## 🚀 Live Demo
 
-- Can you trust this agent with your funds?
-- Has this agent performed well historically?
-- Is this agent who they claim to be?
+**[https://agent-rep-gamma.vercel.app/](https://agent-rep-gamma.vercel.app/)**
 
-**There's no way to verify.** Until now.
+- [Register Agent](https://agent-rep-gamma.vercel.app/register) - Connect wallet, choose tier, stake SOL
+- [Explore Agents](https://agent-rep-gamma.vercel.app/explore) - Browse & verify agent track records
+- [Dashboard](https://agent-rep-gamma.vercel.app/dashboard) - Track your performance & funding status
 
-## 💡 Solution
+## 💡 The Problem
 
-AgentRep is a trustless reputation system for AI agents on Solana. Every action an agent takes is recorded on-chain, creating an immutable track record that anyone can verify.
+AI agents are trading, lending, and building on Solana. But there's no way to:
+- Know if an agent is trustworthy
+- Verify historical performance
+- Gate access based on track record
+- Fund high-performing agents with capital
 
-### Core Features
+**AgentRep solves this by combining on-chain reputation with prop firm funding.**
 
-- **Agent Registry** - Agents register with their public key and metadata
-- **Action Logging** - Every trade/action is recorded with outcomes
-- **Reputation Score** - Calculated from historical performance
-- **Trust Queries** - Check any agent's reputation before collaborating
-- **Staking** - Agents stake SOL to prove commitment
-- **Slashing** - Bad actors lose their stake
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────┐
-│              AGENTREP PROTOCOL                      │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────┐  │
-│  │   Registry   │  │    Action    │  │  Score   │  │
-│  │   Program    │  │    Logger    │  │  Engine  │  │
-│  └──────────────┘  └──────────────┘  └──────────┘  │
-│         │                │                │        │
-│         └────────────────┴────────────────┘        │
-│                          │                         │
-│                   ┌──────────────┐                 │
-│                   │  Agent PDA   │                 │
-│                   │   Storage    │                 │
-│                   └──────────────┘                 │
-└─────────────────────────────────────────────────────┘
-```
-
-## 📦 Programs
-
-### 1. Registry Program
-- `register_agent` - Create agent profile with stake
-- `update_agent` - Update agent metadata
-- `deregister_agent` - Exit and reclaim stake
-
-### 2. Action Logger
-- `log_action` - Record an action with outcome
-- `verify_action` - Third-party verification of outcomes
-
-### 3. Reputation Engine
-- `calculate_score` - Compute reputation from history
-- `query_reputation` - Get agent's current score
-- `get_history` - Fetch action history
-
-## 🔢 Reputation Score
+## 🏗️ How It Works
 
 ```
-Score = (Win Rate × 40) + (Consistency × 30) + (Volume × 20) + (Age × 10)
+1. REGISTER     → Stake SOL, choose funding tier (Bronze/Silver/Gold/Diamond)
+2. TRADE        → Execute trades, every action logged on-chain
+3. BUILD REP    → Score = WinRate(40%) + Volume(30%) + Age(20%) + Consistency(10%)
+4. GET FUNDED   → Hit score thresholds → unlock prop capital ($10K-$500K)
+```
 
-Where:
-- Win Rate: % of profitable actions
-- Consistency: Standard deviation of returns
-- Volume: Total value transacted (log scale)
-- Age: Days since registration (capped)
+## 💰 Funding Tiers
+
+| Tier | Min Score | Capital | Profit Split | Reg Fee |
+|------|-----------|---------|--------------|---------|
+| 🥉 Bronze | 40+ | $10K | 70/30 | 0.5 SOL |
+| 🥈 Silver | 60+ | $50K | 75/25 | 2 SOL |
+| 🥇 Gold | 75+ | $100K | 80/20 | 5 SOL |
+| 💎 Diamond | 90+ | $500K | 85/15 | 10 SOL |
+
+## 🔧 Technical Architecture
+
+### Solana Program (Anchor)
+
+```
+programs/agent-rep/src/lib.rs
+├── register_agent()     - Stake SOL, create agent PDA
+├── log_action()         - Record trade with outcome
+├── update_reputation()  - Recalculate score
+├── query_trust()        - Check if agent meets threshold
+├── slash_stake()        - Penalize bad actors
+└── withdraw_stake()     - Exit with remaining stake
+```
+
+### SDK (TypeScript)
+
+```typescript
+import { AgentRepClient } from '@agentrep/sdk';
+
+const client = new AgentRepClient(connection, wallet);
+
+// Register agent
+await client.registerAgent({
+  name: "AlphaTrader",
+  tier: "Gold",
+  stake: 5.0, // SOL
+});
+
+// Log a trade
+await client.logAction({
+  actionType: "TRADE",
+  inputAmount: 1000,
+  outputAmount: 1150,
+  outcome: "PROFIT",
+});
+
+// Check reputation
+const score = await client.getReputationScore(agentPubkey);
+const trusted = await client.queryTrust(agentPubkey, minScore: 60);
+```
+
+## 🎯 Use Cases
+
+1. **Prop Firm Access** - High-rep agents get funded trading capital
+2. **DeFi Gating** - Protocols require minimum reputation to interact
+3. **Agent Collaboration** - Verify agents before forming swarms
+4. **Marketplace Trust** - Show verified track records to clients
+5. **Governance** - Reputation-weighted voting power
+
+## 🤝 Integration Partners
+
+Projects interested in integrating AgentRep:
+- **ZNAP** - Social network for AI agents (profile reputation)
+- **AEGIS** - Multi-agent DeFi swarm (risk scoring)
+- **Varuna** - Liquidation protection (agent verification)
+- **Nix-YieldRouter** - Treasury management (reputation-gated yields)
+- **AgentDEX** - Agent trading platform (trust layer)
+- **Pyxis** - Oracle marketplace (oracle reputation)
+
+## 📁 Project Structure
+
+```
+agent-rep/
+├── programs/
+│   └── agent-rep/
+│       └── src/lib.rs      # Solana program (Anchor)
+├── sdk/
+│   └── src/
+│       ├── client.ts       # TypeScript SDK
+│       ├── types.ts        # Type definitions
+│       └── cli.ts          # CLI tool
+├── frontend/
+│   └── app/
+│       ├── page.tsx        # Landing page
+│       ├── register/       # Registration flow
+│       ├── dashboard/      # Agent dashboard
+│       └── explore/        # Browse agents
+├── tests/
+│   └── agent-rep.ts        # Integration tests
+└── scripts/
+    ├── deploy.sh           # Deployment script
+    └── demo.ts             # Demo transactions
 ```
 
 ## 🚀 Quick Start
 
-### For Agents (TypeScript SDK)
-
-```typescript
-import { AgentRep } from '@agentrep/sdk';
-
-// Initialize
-const rep = new AgentRep(connection, wallet);
-
-// Register your agent
-await rep.register({
-  name: "AlphaBot",
-  description: "DeFi trading agent",
-  stake: 1.0 // SOL
-});
-
-// Log an action
-await rep.logAction({
-  type: "TRADE",
-  protocol: "Jupiter",
-  input: { token: "SOL", amount: 10 },
-  output: { token: "USDC", amount: 1050 },
-  outcome: "SUCCESS",
-  pnl: 50 // in USD
-});
-
-// Check another agent's reputation
-const score = await rep.getReputation(otherAgentPubkey);
-console.log(`Agent score: ${score.total}/100`);
-```
-
-### For Humans (CLI)
-
 ```bash
-# Check an agent's reputation
-agentrep check <agent-pubkey>
+# Clone
+git clone https://github.com/mabyconnect247-create/Agent---Rep.git
+cd Agent---Rep
 
-# View action history
-agentrep history <agent-pubkey> --limit 50
-
-# Leaderboard
-agentrep leaderboard --top 20
-```
-
-## 🛠️ Development
-
-### Prerequisites
-- Rust 1.70+
-- Solana CLI 1.17+
-- Anchor 0.29+
-- Node.js 18+
-
-### Build
-
-```bash
-# Build Solana programs
-cd programs
+# Build Solana program
 anchor build
 
-# Build SDK
-cd ../sdk
-npm install
-npm run build
-```
-
-### Test
-
-```bash
-# Run program tests
+# Run tests
 anchor test
 
-# Run SDK tests
-npm test
-```
-
-### Deploy
-
-```bash
 # Deploy to devnet
 anchor deploy --provider.cluster devnet
 
-# Deploy to mainnet
-anchor deploy --provider.cluster mainnet
+# Run frontend locally
+cd frontend
+npm install
+npm run dev
 ```
 
-## 📊 Use Cases
-
-1. **Agent-to-Agent Trust** - Before collaborating, agents check each other's reputation
-2. **Human Verification** - Users verify agent track records before granting access
-3. **Protocol Integration** - DeFi protocols can require minimum reputation scores
-4. **Insurance** - Reputation scores could inform agent insurance premiums
-5. **Hiring** - Find the best-performing agents for specific tasks
-
-## 🏆 Hackathon
-
-Built for the Solana x Colosseum Agent Hackathon (Feb 2026).
-
-**Team:** maby-openclaw (AI agent) + Maby (human)
-
-## 📄 License
+## 📜 License
 
 MIT
 
 ## 🔗 Links
 
-- [Colosseum Project Page](https://colosseum.com/agent-hackathon/projects/agent-rep)
-- [Documentation](./docs)
-- [SDK Reference](./sdk/README.md)
+- **Live Demo:** https://agent-rep-gamma.vercel.app/
+- **GitHub:** https://github.com/mabyconnect247-create/Agent---Rep
+- **Forum Post:** https://colosseum.com/agent-hackathon/forum/211
+- **Twitter:** [@MabyConnect](https://twitter.com/MabyConnect)
+- **Telegram:** [@Mabyconnect2000](https://t.me/Mabyconnect2000)
+
+---
+
+Built with 🤖 by **maby-openclaw** for **Solana Agent Hackathon 2026**
