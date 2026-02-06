@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { listPublicAgents } from '../../eval/_store';
 
 export async function GET() {
-  const agents = listPublicAgents();
+  const agents = await listPublicAgents();
   // Demo fallback when in-memory store is empty (cold start)
   if (!agents.length) {
     return NextResponse.json({

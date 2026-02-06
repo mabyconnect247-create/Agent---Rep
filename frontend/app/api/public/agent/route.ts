@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     });
   }
 
-  const rec = getPublicAgent(id);
+  const rec = await getPublicAgent(id);
   if (!rec) return NextResponse.json({ error: 'not found' }, { status: 404 });
 
   const closedTrades = rec.trades

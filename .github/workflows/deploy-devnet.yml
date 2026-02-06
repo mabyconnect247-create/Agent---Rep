@@ -1,0 +1,70 @@
+name: Deploy to Devnet
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to confirm'
+        required: true
+
+env:
+  SOLANA_VERSION: 1.17.0
+  ANCHOR_VERSION: 0.29.0
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'deploy'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Cache Solana
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.local/share/solana
+            ~/.cache/solana
+          key: solana-${{ env.SOLANA_VERSION }}
+          
+      - name: Install Solana
+        run: |
+          sh -c "$(curl -sSfL https://release.solana.com/v${{ env.SOLANA_VERSION }}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          
+      - name: Install Anchor
+        run: |
+          npm i -g @coral-xyz/anchor-cli@${{ env.ANCHOR_VERSION }}
+          
+      - name: Setup Wallet
+        run: |
+          echo "${{ secrets.DEPLOY_KEYPAIR }}" > deploy-keypair.json
+          solana config set --keypair deploy-keypair.json
+          solana config set --url devnet
+          
+      - name: Check Balance
+        run: |
+          solana balance
+          
+      - name: Build Program
+        working-directory: ./agent-rep
+        run: |
+          anchor build
+          
+      - name: Deploy to Devnet
+        working-directory: ./agent-rep
+        run: |
+          anchor deploy --provider.cluster devnet
+          
+      - name: Output Program ID
+        run: |
+          PROGRAM_ID=$(solana-keygen pubkey agent-rep/target/deploy/agent_rep-keypair.json)
+          echo "## Deployment Complete! 🚀" >> $GITHUB_STEP_SUMMARY
+          echo "**Program ID:** \`$PROGRAM_ID\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Cluster:** devnet" >> $GITHUB_STEP_SUMMARY
+          echo "**Explorer:** https://explorer.solana.com/address/$PROGRAM_ID?cluster=devnet" >> $GITHUB_STEP_SUMMARY

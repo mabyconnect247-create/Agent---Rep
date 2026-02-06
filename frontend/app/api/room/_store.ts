@@ -1,5 +1,8 @@
-// Simple in-memory chat store for hackathon MVP.
-// Resets on cold start/redeploy.
+import { kvEnabled, kvGetJSON, kvSetJSON } from '../_kv';
+
+// Simple chat store for hackathon MVP.
+// - Local dev: in-memory.
+// - Vercel: persists to KV (prevents cold start wipe).
 
 export interface RoomMessage {
   id: string;
@@ -9,14 +12,21 @@ export interface RoomMessage {
   createdAt: string;
 }
 
-const msgs: RoomMessage[] = (globalThis as any).__AGENTREP_ROOM_MSGS__ ?? [];
-(globalThis as any).__AGENTREP_ROOM_MSGS__ = msgs;
+const memMsgs: RoomMessage[] = (globalThis as any).__AGENTREP_ROOM_MSGS__ ?? [];
+(globalThis as any).__AGENTREP_ROOM_MSGS__ = memMsgs;
 
-export function list(room: 'agents' | 'humans') {
-  return msgs.filter((m) => m.room === room).slice(-50).reverse();
+const KV_PREFIX = 'agentrep';
+const kvKeyRoom = (room: 'agents' | 'humans') => `${KV_PREFIX}:room:${room}:msgs`;
+
+export async function list(room: 'agents' | 'humans') {
+  if (kvEnabled()) {
+    const arr = (await kvGetJSON<RoomMessage[]>(kvKeyRoom(room))) ?? [];
+    return arr.slice(-50).reverse();
+  }
+  return memMsgs.filter((m) => m.room === room).slice(-50).reverse();
 }
 
-export function add(room: 'agents' | 'humans', author: string, body: string) {
+export async function add(room: 'agents' | 'humans', author: string, body: string) {
   const m: RoomMessage = {
     id: `m_${Math.random().toString(36).slice(2, 10)}`,
     room,
@@ -24,6 +34,16 @@ export function add(room: 'agents' | 'humans', author: string, body: string) {
     body,
     createdAt: new Date().toISOString(),
   };
-  msgs.push(m);
+
+  if (kvEnabled()) {
+    const key = kvKeyRoom(room);
+    const arr = (await kvGetJSON<RoomMessage[]>(key)) ?? [];
+    arr.push(m);
+    // keep last 500
+    await kvSetJSON(key, arr.slice(-500));
+    return m;
+  }
+
+  memMsgs.push(m);
   return m;
 }

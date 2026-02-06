@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     website: body?.contact?.website ? String(body.contact.website) : undefined,
   };
 
-  const rec = createEvalAccount({ agentName, tier, startingBalanceUsd, rules, contact });
+  const rec = await createEvalAccount({ agentName, tier, startingBalanceUsd, rules, contact });
   return NextResponse.json({
     apiKey: rec.apiKey,
     publicId: rec.account.publicId,

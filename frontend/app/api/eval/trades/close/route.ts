@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   const apiKey = authApiKey(req);
   if (!apiKey) return NextResponse.json({ error: 'missing api key' }, { status: 401 });
 
-  const rec = getRecord(apiKey);
+  const rec = await getRecord(apiKey);
   if (!rec) return NextResponse.json({ error: 'invalid api key' }, { status: 401 });
 
   const body = await req.json().catch(() => null);
@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
   const exitPriceUsd = await fetchPriceUsd(trade.mint);
   const next = closeTrade(rec, tradeId, exitPriceUsd);
-  putRecord(next);
+  await putRecord(next);
 
   const updated = next.trades.find((t) => t.id === tradeId);
   return NextResponse.json({ ok: true, trade: updated, account: next.account });

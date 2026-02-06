@@ -1,8 +1,10 @@
-import type { EvalAccount, EvalRules, PaperTrade, EvalTier, TradeMode, Side } from '../../../lib/eval';
+import type { EvalAccount, EvalRules, PaperTrade, EvalTier } from '../../../lib/eval';
 import { applyCloseTrade } from '../../../lib/eval';
+import { kvDel, kvGetJSON, kvSAdd, kvSMembers, kvSetJSON, kvEnabled } from '../_kv';
 
-// Hackathon MVP in-memory store.
-// NOTE: This will reset on redeploy / cold start. For production, move to Redis/Postgres.
+// Hackathon MVP store.
+// - Local dev: in-memory.
+// - Vercel: persists to Vercel KV when configured (fixes cold start resets).
 
 export interface EvalRecord {
   apiKey: string;
@@ -10,10 +12,15 @@ export interface EvalRecord {
   trades: PaperTrade[];
 }
 
-const store: Map<string, EvalRecord> = (globalThis as any).__AGENTREP_EVAL_STORE__ ?? new Map();
-const publicIndex: Map<string, string> = (globalThis as any).__AGENTREP_PUBLIC_INDEX__ ?? new Map();
-(globalThis as any).__AGENTREP_EVAL_STORE__ = store;
-(globalThis as any).__AGENTREP_PUBLIC_INDEX__ = publicIndex;
+const memStore: Map<string, EvalRecord> = (globalThis as any).__AGENTREP_EVAL_STORE__ ?? new Map();
+const memPublicIndex: Map<string, string> = (globalThis as any).__AGENTREP_PUBLIC_INDEX__ ?? new Map();
+(globalThis as any).__AGENTREP_EVAL_STORE__ = memStore;
+(globalThis as any).__AGENTREP_PUBLIC_INDEX__ = memPublicIndex;
+
+const KV_PREFIX = 'agentrep';
+const kvKeyByApiKey = (apiKey: string) => `${KV_PREFIX}:eval:byApiKey:${apiKey}`;
+const kvKeyApiKeyByPublicId = (publicId: string) => `${KV_PREFIX}:eval:apiKeyByPublicId:${publicId}`;
+const kvSetPublicIds = () => `${KV_PREFIX}:eval:publicIds`;
 
 export function randomKey(prefix = 'ar') {
   return `${prefix}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
@@ -26,32 +33,64 @@ export function authApiKey(req: Request): string | null {
   return m?.[1]?.trim() || null;
 }
 
-export function getRecord(apiKey: string): EvalRecord | null {
-  return store.get(apiKey) ?? null;
+async function kvGetRecord(apiKey: string): Promise<EvalRecord | null> {
+  return await kvGetJSON<EvalRecord>(kvKeyByApiKey(apiKey));
 }
 
-export function putRecord(rec: EvalRecord) {
-  store.set(rec.apiKey, rec);
+async function kvPutRecord(rec: EvalRecord): Promise<void> {
+  await kvSetJSON(kvKeyByApiKey(rec.apiKey), rec);
+  if (rec.account.publicId) {
+    await kvSetJSON(kvKeyApiKeyByPublicId(rec.account.publicId), rec.apiKey);
+    await kvSAdd(kvSetPublicIds(), rec.account.publicId);
+  }
 }
 
-export function rotateKey(oldKey: string): EvalRecord | null {
-  const rec = store.get(oldKey);
+async function kvDeleteRecord(apiKey: string): Promise<void> {
+  await kvDel(kvKeyByApiKey(apiKey));
+}
+
+export async function getRecord(apiKey: string): Promise<EvalRecord | null> {
+  if (kvEnabled()) {
+    const rec = await kvGetRecord(apiKey);
+    if (rec) return rec;
+    // If KV is enabled but record missing, do not fall back to memory (prevents stale keys).
+    return null;
+  }
+  return memStore.get(apiKey) ?? null;
+}
+
+export async function putRecord(rec: EvalRecord) {
+  if (kvEnabled()) return kvPutRecord(rec);
+  memStore.set(rec.apiKey, rec);
+  if (rec.account.publicId) memPublicIndex.set(rec.account.publicId, rec.apiKey);
+}
+
+export async function rotateKey(oldKey: string): Promise<EvalRecord | null> {
+  const rec = await getRecord(oldKey);
   if (!rec) return null;
-  store.delete(oldKey);
+
   const apiKey = randomKey('ar');
-  const next = { ...rec, apiKey };
-  store.set(apiKey, next);
-  if (rec.account.publicId) publicIndex.set(rec.account.publicId, apiKey);
+  const next: EvalRecord = { ...rec, apiKey };
+
+  if (kvEnabled()) {
+    await kvDeleteRecord(oldKey);
+    await kvPutRecord(next);
+    return next;
+  }
+
+  memStore.delete(oldKey);
+  memStore.set(apiKey, next);
+  if (next.account.publicId) memPublicIndex.set(next.account.publicId, apiKey);
   return next;
 }
 
-export function createEvalAccount(params: {
+export async function createEvalAccount(params: {
   agentName: string;
   tier: EvalTier;
   startingBalanceUsd: number;
   rules: EvalRules;
   contact?: EvalAccount['contact'];
-}): EvalRecord {
+}): Promise<EvalRecord> {
   const now = new Date();
   const dayKey = now.toISOString().slice(0, 10);
   const publicId = `ag_${Math.random().toString(36).slice(2, 10)}`;
@@ -73,14 +112,43 @@ export function createEvalAccount(params: {
 
   const apiKey = randomKey('ar');
   const rec: EvalRecord = { apiKey, account, trades: [] };
-  store.set(apiKey, rec);
-  publicIndex.set(publicId, apiKey);
+
+  if (kvEnabled()) {
+    await kvPutRecord(rec);
+    return rec;
+  }
+
+  memStore.set(apiKey, rec);
+  memPublicIndex.set(publicId, apiKey);
   return rec;
 }
 
-export function listPublicAgents() {
+export async function listPublicAgents() {
   // Return a compact list safe for public display
-  return Array.from(store.values()).map((r) => ({
+  if (kvEnabled()) {
+    const ids = await kvSMembers(kvSetPublicIds());
+    const recs: EvalRecord[] = [];
+    for (const publicId of ids.slice(-250)) {
+      const apiKey = await kvGetJSON<string>(kvKeyApiKeyByPublicId(publicId));
+      if (!apiKey) continue;
+      const rec = await kvGetRecord(apiKey);
+      if (rec) recs.push(rec);
+    }
+
+    return recs.map((r) => ({
+      publicId: r.account.publicId,
+      agentName: r.account.agentName,
+      tier: r.account.tier,
+      status: r.account.status,
+      equityUsd: r.account.equityUsd,
+      startingBalanceUsd: r.account.startingBalanceUsd,
+      createdAt: r.account.createdAt,
+      closedTrades: r.trades.filter((t) => t.status === 'CLOSED').length,
+      openTrades: r.trades.filter((t) => t.status === 'OPEN').length,
+    }));
+  }
+
+  return Array.from(memStore.values()).map((r) => ({
     publicId: r.account.publicId,
     agentName: r.account.agentName,
     tier: r.account.tier,
@@ -93,10 +161,15 @@ export function listPublicAgents() {
   }));
 }
 
-export function getPublicAgent(publicId: string): EvalRecord | null {
-  const apiKey = publicIndex.get(publicId);
+export async function getPublicAgent(publicId: string): Promise<EvalRecord | null> {
+  if (kvEnabled()) {
+    const apiKey = await kvGetJSON<string>(kvKeyApiKeyByPublicId(publicId));
+    if (!apiKey) return null;
+    return (await kvGetRecord(apiKey)) ?? null;
+  }
+  const apiKey = memPublicIndex.get(publicId);
   if (!apiKey) return null;
-  return store.get(apiKey) ?? null;
+  return memStore.get(apiKey) ?? null;
 }
 
 export function openTrade(rec: EvalRecord, trade: Omit<PaperTrade, 'id' | 'accountId' | 'entryTime' | 'status'>): EvalRecord {
